@@ -1,23 +1,24 @@
-
 param sqlAdminUser string
 
 @secure()
 param sqlAdminPassword string
 
 param keyVaultName string
+param principalId string
 param name string
 param databaseName string
 param serverEdition string
-param skuSizeGB int
 param dbInstanceType string
 param version string
 
 param location string = resourceGroup().location
 param tags object = {}
 
+param adminUserName string = 'sqlAdAdmin'
+
 param connectionStringKey string = 'AZURE-PSQL-CONNECTION-STRING'
 
-resource psqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2021-06-01' = {
+resource psqlServer 'Microsoft.DBforPostgreSQL/servers@2017-12-01' = {
   name: name
   location: location
   tags: union(tags, { 'spring-cloud-azure': true })
@@ -27,27 +28,13 @@ resource psqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2021-06-01' = {
   }
   properties: {
     version: version
+    createMode: 'Default'
     administratorLogin: sqlAdminUser
     administratorLoginPassword: sqlAdminPassword
-    storage: {
-      storageSizeGB: skuSizeGB
-    }
-    backup: {
-      backupRetentionDays: 7
-      geoRedundantBackup: 'Disabled'
-    }
   }
 
   resource database 'databases' = {
-    name: databaseName
-  }
-
-  resource psql_azure_extensions 'configurations' = {
-    name: 'azure.extensions'
-    properties: {
-      value: 'UUID-OSSP'
-      source: 'user-override'
-    }
+    name: 'todo'
   }
 
   resource firewall 'firewallRules' = {
@@ -55,6 +42,24 @@ resource psqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2021-06-01' = {
     properties: {
       startIpAddress: '0.0.0.0'
       endIpAddress: '255.255.255.255'
+    }
+  }
+
+  // resource psql_azure_extensions 'configurations' = {
+  //   name: 'azure.extensions'
+  //   properties: {
+  //     value: 'UUID-OSSP'
+  //     source: 'user-override'
+  //   }
+  // }
+
+  resource admin 'administrators' = {
+    name: 'activeDirectory'
+    properties: {
+      administratorType: 'ActiveDirectory'
+      login: adminUserName
+      sid: principalId
+      tenantId: subscription().tenantId
     }
   }
 
@@ -91,5 +96,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
 
 
 output connectionStringKey string = connectionStringKey
+output serverDomain string = psqlServer.properties.fullyQualifiedDomainName
 output name string = psqlServer.name
 output databasName string = databaseName
+output adminUserName string = adminUserName

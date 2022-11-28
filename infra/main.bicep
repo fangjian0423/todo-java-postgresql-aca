@@ -89,6 +89,9 @@ module api './app/api.bicep' = {
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     containerRegistryName: containerApps.outputs.registryName
     keyVaultName: keyVault.outputs.name
+    psqlName: psqlServer.outputs.name
+    psqlDataBaseName: psqlServer.outputs.databasName
+    psqlUserName: 'azdmirole@${psqlServer.outputs.databasName}'
   }
 }
 
@@ -108,10 +111,26 @@ module psqlServer './app/db.bicep' = {
   scope: rg
   params: {
     name: !empty(psqlServerName) ? psqlServerName : '${abbrs.dBforPostgreSQLServers}${resourceToken}'
+    principalId: principalId
     location: location
     keyVaultName: keyVault.outputs.name
     sqlAdminPassword: sqlAdminPassword
     tags: tags
+  }
+}
+
+// Create Database role based on Active Directory
+module createDatabaseADRole './core/security/create-db-ad-role.bicep' = {
+  name: 'create-database-ad-role'
+  scope: rg
+  params: {
+    dbName: psqlServer.outputs.databasName
+    adminUserPassword: 'TODO'
+    adminUserName: psqlServer.outputs.adminUserName
+    serverDomain: psqlServer.outputs.serverDomain
+    managedIdentityObjId: api.outputs.SERVICE_API_IDENTITY_PRINCIPAL_ID
+    psqlName: psqlServer.outputs.name
+    location: location
   }
 }
 

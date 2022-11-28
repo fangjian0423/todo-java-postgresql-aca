@@ -7,6 +7,9 @@ param containerAppsEnvironmentName string
 param containerRegistryName string
 param imageName string = ''
 param keyVaultName string
+param psqlName string
+param psqlDataBaseName string
+param psqlUserName string
 param serviceName string = 'api'
 
 module app '../core/host/container-app.bicep' = {
@@ -25,6 +28,14 @@ module app '../core/host/container-app.bicep' = {
         value: keyVault.properties.vaultUri
       }
       {
+        name: 'PSQL_CONNECTION_STRING'
+        value: 'jdbc:postgresql://${psql.properties.fullyQualifiedDomainName}:5432/${psqlDataBaseName}?sslmode=require'
+      }
+      {
+        name: 'PSQL_USERNAME'
+        value: psqlUserName
+      }
+      {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
         value: applicationInsights.properties.ConnectionString
       }
@@ -41,6 +52,10 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: keyVaultName
+}
+
+resource psql 'Microsoft.DBforPostgreSQL/servers@2017-12-01' existing = {
+  name: psqlName
 }
 
 output SERVICE_API_IDENTITY_PRINCIPAL_ID string = app.outputs.identityPrincipalId
